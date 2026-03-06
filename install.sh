@@ -5,7 +5,7 @@
 set -e
 
 BASE_URL="${AIRCC_BASE_URL:-https://github.com/brem-liu/aircc/releases/latest/download}"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="aircc"
 
 # Clean up temp files on exit
@@ -92,21 +92,42 @@ else
 fi
 
 # Install binary
+mkdir -p "$INSTALL_DIR"
 echo "Installing to $INSTALL_DIR/$BINARY_NAME"
-if [ -w "$INSTALL_DIR" ]; then
-    mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
-    chmod +x "$INSTALL_DIR/$BINARY_NAME"
-else
-    sudo mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
-    sudo chmod +x "$INSTALL_DIR/$BINARY_NAME"
-fi
+mv "$TMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
+chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
 echo "Binary installed"
+
+# Add to PATH if not already there
+if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
+    SHELL_NAME=$(basename "$SHELL")
+    case "$SHELL_NAME" in
+        zsh)  RC_FILE="$HOME/.zshrc" ;;
+        bash) RC_FILE="$HOME/.bashrc" ;;
+        *)    RC_FILE="" ;;
+    esac
+
+    if [ -n "$RC_FILE" ]; then
+        if ! grep -q "export PATH=\"$INSTALL_DIR:\$PATH\"" "$RC_FILE" 2>/dev/null; then
+            echo "" >> "$RC_FILE"
+            echo "# Added by aircc installer" >> "$RC_FILE"
+            echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$RC_FILE"
+            echo ""
+            echo "Added $INSTALL_DIR to PATH in $RC_FILE"
+            echo "Run 'source $RC_FILE' or open a new terminal to use aircc."
+        fi
+    else
+        echo ""
+        echo "Add $INSTALL_DIR to your PATH:"
+        echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    fi
+fi
+
 echo ""
 echo "Installation complete!"
 echo ""
 echo "Get your device key from the App/Web, then run:"
 echo "  aircc start -k YOUR_KEY        # foreground"
 echo "  aircc start -k YOUR_KEY -d     # background daemon"
-
 echo ""
